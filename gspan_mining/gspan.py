@@ -19,10 +19,11 @@ import pandas as pd
 
 def record_timestamp(func):
     """Record timestamp before and after call of `func`."""
-    def deco(self):
+    def deco(self, **kwargs):
         self.timestamps[func.__name__ + '_in'] = time.time()
-        func(self)
+        o = func(self, **kwargs)
         self.timestamps[func.__name__ + '_out'] = time.time()
+        return o
     return deco
 
 
@@ -297,7 +298,7 @@ class gSpan(object):
             self._counter = itertools.count()
 
     @record_timestamp
-    def run(self):
+    def run(self, gather=False):
         """Run the gSpan algorithm."""
         self._read_graphs()
         self._generate_1edge_frequent_subgraphs()
@@ -312,10 +313,16 @@ class gSpan(object):
                         PDFS(gid, e, None)
                     )
 
+        gathered = []
         for vevlb, projected in root.items():
             self._DFScode.append(DFSedge(0, 1, vevlb))
-            self._subgraph_mining(projected)
+            if gather:
+                gathered.extend(p for p in self._subgraph_mining_yield(projected))
+            else:
+                self._subgraph_mining(projected)
             self._DFScode.pop()
+        if gather:
+            return gathered
 
     def _get_support(self, projected):
         return len(set([pdfs.gid for pdfs in projected]))
@@ -581,3 +588,76 @@ class gSpan(object):
             self._DFScode.pop()
 
         return self
+
+    def _subgraph_mining_yield(self, projected):
+        self._support = self._get_support(projected)
+        if self._support < self._min_support:
+            return
+        if not self._is_min():
+            return
+        yield projected
+
+        num_vertices = self._DFScode.get_num_vertices()
+        self._DFScode.build_rmpath()
+        rmpath = self._DFScode.rmpath
+        maxtoc = self._DFScode[rmpath[0]].to
+        min_vlb = self._DFScode[0].vevlb[0]
+
+        forward_root = collections.defaultdict(Projected)
+        backward_root = collections.defaultdict(Projected)
+        for p in projected:
+            g = self.graphs[p.gid]
+            history = History(g, p)
+            # backward
+            for rmpath_i in rmpath[::-1]:
+                e = self._get_backward_edge(g,
+                                            history.edges[rmpath_i],
+                                            history.edges[rmpath[0]],
+                                            history)
+                if e is not None:
+                    backward_root[
+                        (self._DFScode[rmpath_i].frm, e.elb)
+                    ].append(PDFS(g.gid, e, p))
+            # pure forward
+            if num_vertices >= self._max_num_vertices:
+                continue
+            edges = self._get_forward_pure_edges(g,
+                                                 history.edges[rmpath[0]],
+                                                 min_vlb,
+                                                 history)
+            for e in edges:
+                forward_root[
+                    (maxtoc, e.elb, g.vertices[e.to].vlb)
+                ].append(PDFS(g.gid, e, p))
+            # rmpath forward
+            for rmpath_i in rmpath:
+                edges = self._get_forward_rmpath_edges(g,
+                                                       history.edges[rmpath_i],
+                                                       min_vlb,
+                                                       history)
+                for e in edges:
+                    forward_root[
+                        (self._DFScode[rmpath_i].frm,
+                         e.elb, g.vertices[e.to].vlb)
+                    ].append(PDFS(g.gid, e, p))
+
+        # backward
+        for to, elb in backward_root:
+            self._DFScode.append(DFSedge(
+                maxtoc, to,
+                (VACANT_VERTEX_LABEL, elb, VACANT_VERTEX_LABEL))
+            )
+            self._subgraph_mining_yield(backward_root[(to, elb)])
+            self._DFScode.pop()
+        # forward
+        # No need to check if num_vertices >= self._max_num_vertices.
+        # Because forward_root has no element.
+        for frm, elb, vlb2 in forward_root:
+            self._DFScode.append(DFSedge(
+                frm, maxtoc + 1,
+                (VACANT_VERTEX_LABEL, elb, vlb2))
+            )
+            self._subgraph_mining_yield(forward_root[(frm, elb, vlb2)])
+            self._DFScode.pop()
+        #
+        # return self
