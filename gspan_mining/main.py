@@ -7,8 +7,8 @@ from __future__ import print_function
 import os
 import sys
 
-from .config import parser
-from .gspan import gSpan
+from config import parser
+from gspan import gSpan
 
 
 def main(FLAGS=None):
@@ -26,6 +26,7 @@ def main(FLAGS=None):
         min_support=FLAGS.min_support,
         min_num_vertices=FLAGS.lower_bound_of_num_vertices,
         max_num_vertices=FLAGS.upper_bound_of_num_vertices,
+        min_num_edges=FLAGS.lower_bound_of_num_edges,
         max_ngraphs=FLAGS.num_graphs,
         is_undirected=(not FLAGS.directed),
         verbose=FLAGS.verbose,

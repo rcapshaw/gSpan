@@ -39,6 +39,13 @@ parser.add_argument(
          'default inf'
 )
 parser.add_argument(
+    '-e', '--lower_bound_of_num_edges',
+    type=int,
+    default=1,
+    help='int, lower bound of number of edges of output subgraph, '
+         'default inf'
+)
+parser.add_argument(
     '-d', '--directed',
     type=str2bool,
     default=False,

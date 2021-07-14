@@ -9,10 +9,10 @@ import copy
 import itertools
 import time
 
-from .graph import AUTO_EDGE_ID
-from .graph import Graph
-from .graph import VACANT_GRAPH_ID
-from .graph import VACANT_VERTEX_LABEL
+from graph import AUTO_EDGE_ID
+from graph import Graph
+from graph import VACANT_GRAPH_ID
+from graph import VACANT_VERTEX_LABEL
 
 import pandas as pd
 
@@ -188,6 +188,7 @@ class gSpan(object):
                  min_num_vertices=1,
                  max_num_vertices=float('inf'),
                  max_ngraphs=float('inf'),
+                 min_num_edges=1,
                  is_undirected=True,
                  verbose=False,
                  visualize=False,
@@ -199,6 +200,7 @@ class gSpan(object):
         self._is_undirected = is_undirected
         self._min_support = min_support
         self._min_num_vertices = min_num_vertices
+        self._min_num_edges = min_num_edges
         self._max_num_vertices = max_num_vertices
         self._DFScode = DFScode()
         self._support = 0
@@ -326,6 +328,9 @@ class gSpan(object):
     def _report(self, projected):
         self._frequent_subgraphs.append(copy.copy(self._DFScode))
         if self._DFScode.get_num_vertices() < self._min_num_vertices:
+            return
+        if len(self._DFScode) < self._min_num_edges:
+            # print(len(self._DFScode), "<", self._min_num_edges)
             return
         g = self._DFScode.to_graph(gid=next(self._counter),
                                    is_undirected=self._is_undirected)
