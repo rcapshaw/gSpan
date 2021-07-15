@@ -37,3 +37,6 @@ requirement.txt
 build/*
 dist/*
 gspan_mining.egg-info/*
+qgrid.git/*
+**.pkl
+.idea

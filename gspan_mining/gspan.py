@@ -193,7 +193,8 @@ class gSpan(object):
                  is_undirected=True,
                  verbose=False,
                  visualize=False,
-                 where=False):
+                 where=False,
+                 alternative_support=False):
         """Initialize gSpan instance."""
         self._database_file_name = database_file_name
         self.graphs = dict()
@@ -214,6 +215,7 @@ class gSpan(object):
         self._visualize = visualize
         self._where = where
         self.timestamps = dict()
+        self.alternative_support = alternative_support
         if self._max_num_vertices < self._min_num_vertices:
             print('Max number of vertices can not be smaller than '
                   'min number of that.\n'
@@ -290,7 +292,7 @@ class gSpan(object):
                           is_undirected=self._is_undirected)
                 g.add_vertex(0, vlb)
                 self._frequent_size1_subgraphs.append(g)
-                if self._min_num_vertices <= 1:
+                if self._min_num_vertices <= 1 and self._verbose:
                     self._report_size1(g, support=cnt)
             else:
                 continue
@@ -325,10 +327,13 @@ class gSpan(object):
             return gathered
 
     def _get_support(self, projected):
-        return len(set([pdfs.gid for pdfs in projected]))
+        if self.alternative_support:
+            return len([pdfs.gid for pdfs in projected])
+        else:
+            return len(set([pdfs.gid for pdfs in projected]))
 
     def _report_size1(self, g, support):
-        g.display()
+        g.display(True)
         print('\nSupport: {}'.format(support))
         print('\n-----------------\n')
 
@@ -341,8 +346,9 @@ class gSpan(object):
             return
         g = self._DFScode.to_graph(gid=next(self._counter),
                                    is_undirected=self._is_undirected)
-        display_str = g.display()
-        print('\nSupport: {}'.format(self._support))
+        display_str = g.display(self._verbose)
+        if self._verbose:
+            print('\nSupport: {}'.format(self._support))
 
         # Add some report info to pandas dataframe "self._report_df".
         self._report_df = self._report_df.append(
@@ -357,9 +363,10 @@ class gSpan(object):
         )
         if self._visualize:
             g.plot()
-        if self._where:
-            print('where: {}'.format(list(set([p.gid for p in projected]))))
-        print('\n-----------------\n')
+        if self._verbose:
+            if self._where:
+                print('where: {}'.format(list(set([p.gid for p in projected]))))
+            print('\n-----------------\n')
 
     def _get_forward_root_edges(self, g, frm):
         result = []
